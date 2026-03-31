@@ -1,0 +1,21 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Debug infer as module",
+        "type": "debugpy",
+        "request": "launch",
+        "module": "scripts.infer",
+        "cwd": "/home/michael/projects/foundpose",
+        "console": "integratedTerminal",
+        "args": [
+          "--opts-path",
+          "configs/infer/hot3d.json"
+        ],
+        "env": {
+        "PYTHONPATH": "/home/michael/projects/foundpose:/home/michael/projects/foundpose/external/bop_toolkit:/home/michael/projects/foundpose/external/dinov2"
+        },
+        "justMyCode": false
+      }
+    ]
+  }

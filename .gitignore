@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+
+# Conda / venv
+env/
+venv/
+
+# Logs
+*.log
+
+# Blender
+*.blend1
+
+# Images
+*.png
+*.jpg
+
+# Models
+*.ply
+*.obj
+*.stl
+
+# Dataset
+datasets/
+data/
+output/
