@@ -90,6 +90,7 @@ def get_model_params(datasets_path, dataset_name, model_type=None):
         # "hot3d": list(range(1, 34)),
         "hot3d": [25],
         "handal": list(range(1, 41)),
+        "triplecoils": [4],
     }[dataset_name]
 
     # ID's of objects with ambiguous views evaluated using the ADI pose error
@@ -111,6 +112,7 @@ def get_model_params(datasets_path, dataset_name, model_type=None):
         "hopev2": [],
         "hot3d": [1, 2, 3, 5, 22, 24, 25, 29, 30, 32],
         "handal": [26, 35, 36, 37, 38, 39, 40],
+        "triplecoils": [],
     }[dataset_name]
 
     # T-LESS includes two types of object models, CAD and reconstructed.
@@ -442,9 +444,30 @@ def get_split_params(datasets_path, dataset_name, split, split_type=None):
 
         supported_error_types = ["ad", "add", "adi", "mssd", "mspd"]
 
+    # Add your custom dataset here.
+    elif dataset_name == "triplecoils":
+        p["im_modalities"] = ["gray1","gray2"]
+        p["scene_ids"] = {
+            "train": [],
+            "val": [],
+            "test": [0],
+        }[split]
+        p["im_size"] = (1280, 1280)
+
+        if split == "test":
+            p["depth_range"] = None  # Not calculated yet.
+            p["azimuth_range"] = None  # Not calculated yet.
+            p["elev_range"] = None  # Not calculated yet.
+        exts = {
+            "rgb": ".jpg",
+            "gray1": ".jpg",
+            "gray2": "jpg",
+        }
+
+
     else:
         raise ValueError("Unknown BOP dataset ({}).".format(dataset_name))
-
+    
     base_path = join(datasets_path, dataset_name)
     split_path = join(base_path, split)
     if split_type is not None:

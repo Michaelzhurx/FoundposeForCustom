@@ -142,6 +142,7 @@ def tfidf_matching(
     timer.start()
 
     # For each query vector, find the nearest visual words.
+
     word_ids, word_dists = find_nearest_object_features(
         query_features=query_features,
         knn_index=visual_words_knn_index,

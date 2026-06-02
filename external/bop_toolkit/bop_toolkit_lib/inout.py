@@ -554,7 +554,7 @@ def load_ply(path):
         elif line.startswith("property list") and header_face_section:
             elems = line.split()
             if elems[-1] == "vertex_indices" or elems[-1] == "vertex_index":
-                # (name of the property, data type)
+                # (name of the property, data type) 
                 face_props.append(("n_corners", elems[2]))
                 for i in range(face_n_corners):
                     face_props.append(("ind_" + str(i), elems[3]))

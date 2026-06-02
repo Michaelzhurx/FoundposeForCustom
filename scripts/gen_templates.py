@@ -101,10 +101,6 @@ def synthesize_templates(opts: GenTemplatesOpts) -> None:
 
     print("Object lids: ", object_lids)
 
-    # print("Bop camera params: \n", bop_camera)
-
-    # print("Bop test split props: \n", bop_test_split_props)
-
     # Prepare a camera for the template (square viewport of a size divisible by the patch size).
     bop_camera_width = bop_camera['im_size'][0]
     bop_camera_height = bop_camera['im_size'][1]
@@ -147,8 +143,8 @@ def synthesize_templates(opts: GenTemplatesOpts) -> None:
     depth_range = bop_test_split_props["depth_range"]
     # min_depth = np.min(depth_range)
     # max_depth = np.max(depth_range)
-    min_depth = 612
-    max_depth = 1243
+    min_depth = 350
+    max_depth = 800
     depth_range_size = max_depth - min_depth
     depth_cell_size = depth_range_size / float(opts.num_viewspheres)
     viewsphere_radii = []
