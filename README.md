@@ -45,10 +45,28 @@ Edit the ```env_vars.sh``` file as follows:
 ```bash
 #!/bin/sh
 
-export REPO_PATH=/path/to/foundpose/repository  # Replace with the path to the FoundPose repository.
-export BOP_PATH=/path/to/bop/datasets  # Replace with the path to BOP datasets (https://bop.felk.cvut.cz/datasets).
+//export REPO_PATH=/path/to/foundpose/repository  # Replace with the path to the FoundPose repository.
+//export BOP_PATH=/path/to/bop/datasets  # Replace with the path to BOP datasets (https://bop.felk.cvut.cz/datasets).
 
-export PYTHONPATH=$REPO_PATH:$REPO_PATH/external/bop_toolkit:$REPO_PATH/external/dinov2
+//export PYTHONPATH=$REPO_PATH:$REPO_PATH/external/bop_toolkit:$REPO_PATH/external/dinov2
+
+#!/bin/sh
+
+export REPO_PATH=/home/michael/projects/foundpose
+export BOP_PATH=/home/michael/bop_datasets
+export BOP_OUTPUT_PATH=$BOP_PATH
+export PYTHONPATH=$REPO_PATH:$REPO_PATH/external/bop_toolkit:$REPO_PATH/external/dinov2:$PYTHONPATH
+# Headless rendering for pyrender / PyOpenGL
+export PYOPENGL_PLATFORM=osmesa
+# export PYGLET_HEADLESS=1
+
+# Make system libs (libffi/LLVM/OSMesa) take precedence, then conda libs
+# For Gen_templete and Infer to work, we need to use the system's libffi
+export LD_LIBRARY_PATH="/usr/lib/x86_64-linux-gnu:$CONDA_PREFIX/lib:${LD_LIBRARY_PATH:-}"
+
+# For Gen_repre to work
+# export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH:-}"
+
 ```
 
 Activate the conda environment:
