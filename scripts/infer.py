@@ -9,7 +9,7 @@ import os
 import gc
 import time
 
-from typing import List, NamedTuple, Optional, Tuple
+from typing import Any, List, NamedTuple, Optional, Tuple
 
 import cv2
 
@@ -36,6 +36,8 @@ from utils import (
     pnp_util,
     projector_util,
     repre_util,
+    render_vis_util,
+    vis_base_util,
     vis_util,
     data_util,
     renderer_builder,
@@ -94,10 +96,88 @@ class InferOpts(NamedTuple):
     # Other options.
     save_estimates: bool = True
     vis_results: bool = True
+    vis_orig_pose_overlay: bool = True
     vis_corresp_top_n: int = 100
     vis_feat_map: bool = True
     vis_for_paper: bool = True
     debug: bool = True
+
+
+def _draw_original_pose_overlay(
+    base_image: np.ndarray,
+    object_pose_m2w: structs.ObjectPose,
+    object_pose_m2w_gt: Optional[structs.ObjectPose],
+    object_lid: int,
+    camera_c2w: PinholePlaneCameraModel,
+    renderer: Any,
+) -> np.ndarray:
+    """Draws rendered pose contours on the original uncropped image."""
+
+    vis = np.array(base_image, copy=True)
+    if vis.dtype != np.uint8:
+        vis = np.clip(255.0 * vis, 0, 255).astype(np.uint8)
+
+    if object_pose_m2w_gt is not None:
+        vis_gt_pose = render_vis_util.create_object_mask(
+            base_image=np.ones_like(vis) * 255,
+            object_lids=[object_lid],
+            object_poses_m2w=[object_pose_m2w_gt],
+            camera_c2w=camera_c2w,
+            renderer=renderer,
+            object_colors=[(0.0, 0.0, 0.0)],
+            object_stickers=None,
+            fg_opacity=1.0,
+            bg_opacity=1.0,
+            all_in_one=True,
+        )
+        vis = vis_base_util.add_contour_overlay(
+            vis,
+            vis_gt_pose,
+            color=(255, 0, 0),
+            dilate_iterations=1,
+        )
+
+    vis_est_pose = render_vis_util.create_object_mask(
+        base_image=np.ones_like(vis) * 255,
+        object_lids=[object_lid],
+        object_poses_m2w=[object_pose_m2w],
+        camera_c2w=camera_c2w,
+        renderer=renderer,
+        object_colors=[(0.0, 0.0, 0.0)],
+        object_stickers=None,
+        fg_opacity=1.0,
+        bg_opacity=1.0,
+        all_in_one=True,
+    )
+    vis = vis_base_util.add_contour_overlay(
+        vis,
+        vis_est_pose,
+        color=(0, 255, 0),
+        dilate_iterations=1,
+    )
+
+    return vis
+
+
+def _load_original_image(
+    split_props: dict,
+    scene_id: int,
+    im_id: int,
+) -> np.ndarray:
+    """Loads the uncropped source image from the dataset split."""
+
+    if "gray" in split_props["im_modalities"]:
+        image_path = split_props["gray_tpath"].format(scene_id=scene_id, im_id=im_id)
+    elif "gray1" in split_props["im_modalities"]:
+        image_path = split_props["gray1_tpath"].format(scene_id=scene_id, im_id=im_id)
+    else:
+        image_path = split_props["rgb_tpath"].format(scene_id=scene_id, im_id=im_id)
+
+    image = inout.load_im(image_path)
+    if image.ndim == 2:
+        image = np.stack([image] * 3, axis=-1)
+
+    return image
 
 
 def infer(opts: InferOpts) -> None:
@@ -284,6 +364,12 @@ def infer(opts: InferOpts) -> None:
                 scene_gts,
                 scene_gts_info
             )
+            raw_orig_image_np_hwc = _load_original_image(
+                split_props=bop_test_split_props,
+                scene_id=bop_chunk_id,
+                im_id=bop_im_id,
+            )
+            raw_orig_camera_c2w = scene_cameras[bop_chunk_id][bop_im_id]
             
             # Get object annotations.
             object_annos = []
@@ -568,6 +654,7 @@ def infer(opts: InferOpts) -> None:
                         t_m2c_coarse,
                         inliers_coarse,
                         quality_coarse,
+                        quality_info_coarse,
                     ) = pnp_util.estimate_pose(
                         corresp=corresp_curr,
                         camera_c2w=camera_c2w,
@@ -579,7 +666,15 @@ def infer(opts: InferOpts) -> None:
                     )
 
                     logger.info(
-                        f"Quality of coarse pose {corresp_id}: {quality_coarse}"
+                        "Quality of coarse pose "
+                        f"{corresp_id}: score={quality_coarse:.4f}, "
+                        f"inliers={int(quality_info_coarse['inlier_count'])}/"
+                        f"{int(quality_info_coarse['num_corresp'])}, "
+                        f"ratio={quality_info_coarse['inlier_ratio']:.3f}, "
+                        f"mean_reproj={quality_info_coarse['mean_reproj_error']:.3f}px, "
+                        f"median_reproj={quality_info_coarse['median_reproj_error']:.3f}px, "
+                        f"template={quality_info_coarse['template_score']:.3f}, "
+                        f"coverage={quality_info_coarse['spatial_coverage']:.3f}"
                     )
 
                     if coarse_pose_success:
@@ -590,6 +685,7 @@ def infer(opts: InferOpts) -> None:
                                 "t_m2c": t_m2c_coarse,
                                 "corresp_id": corresp_id,
                                 "quality": quality_coarse,
+                                "quality_info": quality_info_coarse,
                                 "inliers": inliers_coarse,
                             }
                         )
@@ -774,6 +870,28 @@ def infer(opts: InferOpts) -> None:
                             extractor=extractor,
                         )
                         timer.elapsed("Time for visualization")
+
+                    if opts.vis_orig_pose_overlay:
+                        vis_orig_pose_overlay = _draw_original_pose_overlay(
+                            base_image=raw_orig_image_np_hwc,
+                            object_pose_m2w=pose_m2w,
+                            object_pose_m2w_gt=object_pose_m2w_gt,
+                            object_lid=object_lid,
+                            camera_c2w=raw_orig_camera_c2w,
+                            renderer=renderer,
+                        )
+                        orig_pose_overlay_path = os.path.join(
+                            output_dir,
+                            (
+                                f"{bop_chunk_id}_{bop_im_id}_{object_lid}_{inst_j}_"
+                                f"{hypothesis_id}_orig_pose_overlay.jpg"
+                            ),
+                        )
+                        inout.save_im(orig_pose_overlay_path, vis_orig_pose_overlay)
+                        logger.info(
+                            "Original image pose overlay saved to "
+                            f"{orig_pose_overlay_path}"
+                        )
 
                     # Assemble visualization tiles to a grid and save it.
                     if len(vis_tiles):
