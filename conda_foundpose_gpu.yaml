@@ -24,8 +24,8 @@ dependencies:
   - pillow=10.3.0
   - pip=24.0
   - vispy=0.12.1
+  - cython==3.0.10
   - pip:
-    - cython==3.0.10
     - xformers==0.0.20 # GPU
     - git+https://github.com/facebookincubator/submitit
     - --extra-index-url https://pypi.nvidia.com
